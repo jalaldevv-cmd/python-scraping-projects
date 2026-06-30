@@ -9,36 +9,50 @@ headers = {
     "User-Agent": "Mozilla/5.0"
 }
 
+
 def get_html(url):
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=10)
+    response.raise_for_status()
     return response.text
 
-def extract_price(html):
+
+def extract_prices(html):
     soup = BeautifulSoup(html, "html.parser")
 
-    price_tag = soup.find("p", class_="price_color")
+    price_tags = soup.find_all("p", class_="price_color")
 
-    if not price_tag:
-        return None
-    else:
-        return price_tag.text.strip()
-    
-def save_price(price):
+    prices = [tag.text.strip() for tag in price_tags]
+
+    return prices
+
+
+def save_prices(prices):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open("price.csv", "a", newline="") as file:
+
+    with open("prices.csv", "a", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
-        writer.writerow([timestamp, price])
+
+        for price in prices:
+            writer.writerow([timestamp, price])
+
 
 def main():
-    html = get_html(URL)
-    price = extract_price(html)
+    print("Starting price scraping...")
 
-    if price:
-        save_price(price)
-        print("Price saved successfully! Price found: ", price)
+    try:
+        html = get_html(URL)
+    except requests.RequestException as e:
+        print("Request failed:", e)
+        return
 
+    prices = extract_prices(html)
+
+    if prices:
+        save_prices(prices)
+        print(f"Saved {len(prices)} prices successfully!")
     else:
-        print("Price not found...")
+        print("No prices found.")
+
 
 if __name__ == "__main__":
     main()
